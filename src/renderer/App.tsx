@@ -1,27 +1,7 @@
 import React, {useMemo, useState} from 'react'
 import {observer} from 'mobx-react'
-
-// 早点引入样式，确保后来的样式可以覆盖之前的
-import './App.less'
-import './component/Icon/lib/iconfont.js'
-
-import {download, upload} from './store'
-import {MyIcon} from './component/Icon'
-import electronApi from './electronApi'
-import pkg from '../../package.json'
-import {delay} from '../common/util'
-import project from '../project.config'
-import {useLatestRelease} from './hook/useLatestRelease'
-import {Touchable} from './component/Touchable'
-
-import Upload from './page/Upload'
-import Files from './page/Files'
-import Download from './page/Download'
-import Complete from './page/Complete'
-import Parse from './page/Parse'
-import SplitMerge from './page/SplitMerge'
-import Setting from './page/Setting'
-
+import {shell} from '@electron/remote'
+import {Layout, Menu, Tabs} from 'antd'
 import {
   CheckCircleOutlined,
   CloudDownloadOutlined,
@@ -34,23 +14,39 @@ import {
   CloudSyncOutlined,
 } from '@ant-design/icons'
 
-import {Layout, Menu, Tabs} from 'antd'
+// 早点引入样式，确保后来的样式可以覆盖之前的
+import './App.less'
+import './component/Icon/lib/iconfont.js'
+
+import {download, upload} from './store'
+import {MyIcon} from './component/Icon'
+import pkg from '../../package.json'
+import project from '../project.config'
+import {Touchable} from './component/Touchable'
+import Upload from './page/Upload'
+import Files from './page/Files'
+import Download from './page/Download'
+import Complete from './page/Complete'
+import Parse from './page/Parse'
+import SplitMerge from './page/SplitMerge'
+import Setting from './page/Setting'
 import Sync from './page/Sync'
 import {sync} from './store/Sync'
 import {taskLength} from './utils/task'
-import store from '../common/store'
+import {config} from './store/Config'
+import AuthWrapper from './page/AuthWrapper'
 
 const App = observer(() => {
   const [activeKey, setActiveKey] = useState('1')
-  const [visible, setVisible] = useState(true)
-  const latestVersion = useLatestRelease()
+  const [webviewKey, setWebviewKey] = useState(1)
 
-  const recycleUrl = useMemo(() => new URL(project.page.recycle, store.get('lanzouUrl')).toString(), [])
+  const lanzouUrl = config.lanzouUrl
+  const recycleUrl = useMemo(() => (lanzouUrl ? new URL(project.page.recycle, lanzouUrl).href : ''), [lanzouUrl])
 
   return (
     <Layout>
-      <Layout.Sider theme={'light'}>
-        <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+      <Layout.Sider theme={'light'} className={'h-screen'}>
+        <div className={'flex flex-col flex-1 h-full overflow-y-auto'}>
           <div style={{flex: 1}}>
             <div className='logo' style={{height: 46}} />
             <Menu
@@ -63,22 +59,12 @@ const App = observer(() => {
                 {
                   type: 'group',
                   label: (
-                    <>
-                      <Touchable
-                        title={'去 GitHub 点亮 star'}
-                        onClick={() => electronApi.openExternal('https://github.com/chenhb23/lanzouyun-disk')}
-                      >
-                        <MyIcon iconName={'github'} style={{fontSize: 14}} /> v{pkg.version}
-                      </Touchable>
-                      {!!latestVersion && (
-                        <Touchable
-                          onClick={() => electronApi.openExternal(latestVersion.html_url)}
-                          title={latestVersion.body}
-                        >
-                          （最新: {latestVersion.tag_name}）
-                        </Touchable>
-                      )}
-                    </>
+                    <Touchable
+                      title={'去 GitHub 点亮 star'}
+                      onClick={() => shell.openExternal('https://github.com/chenhb23/lanzouyun-disk')}
+                    >
+                      <MyIcon iconName={'github'} style={{fontSize: 14}} className={'mr-1'} /> v{pkg.version}
+                    </Touchable>
                   ),
                   children: [
                     {key: '1', label: '全部文件', icon: <FolderOpenOutlined />},
@@ -91,11 +77,7 @@ const App = observer(() => {
                             <MyIcon
                               className='refresh'
                               iconName={'refresh'}
-                              onClick={async () => {
-                                setVisible(false)
-                                await delay(1)
-                                setVisible(true)
-                              }}
+                              onClick={() => setWebviewKey(prevState => prevState + 1)}
                             >
                               刷新
                             </MyIcon>
@@ -129,17 +111,21 @@ const App = observer(() => {
               ]}
             />
           </div>
-          <div style={{padding: '30px 24px'}}></div>
+          <div className={'p-1'}></div>
         </div>
       </Layout.Sider>
       <Layout>
         <Layout.Content>
           <Tabs activeKey={activeKey} renderTabBar={() => null}>
             <Tabs.TabPane key={'1'}>
-              <Files />
+              <AuthWrapper>
+                <Files />
+              </AuthWrapper>
             </Tabs.TabPane>
             <Tabs.TabPane key={'2'}>
-              <Upload />
+              <AuthWrapper>
+                <Upload />
+              </AuthWrapper>
             </Tabs.TabPane>
             <Tabs.TabPane key={'3'}>
               <Download />
@@ -153,12 +139,18 @@ const App = observer(() => {
             <Tabs.TabPane key={'6'}>
               <SplitMerge />
             </Tabs.TabPane>
-            <Tabs.TabPane key={'7'}>{visible && <webview src={recycleUrl} style={{height: '100%'}} />}</Tabs.TabPane>
+            <Tabs.TabPane key={'7'}>
+              <AuthWrapper>
+                <webview key={webviewKey} src={recycleUrl} style={{height: '100%'}} />
+              </AuthWrapper>
+            </Tabs.TabPane>
             <Tabs.TabPane key={'8'}>
               <Setting />
             </Tabs.TabPane>
             <Tabs.TabPane key={'9'}>
-              <Sync />
+              <AuthWrapper>
+                <Sync />
+              </AuthWrapper>
             </Tabs.TabPane>
           </Tabs>
         </Layout.Content>

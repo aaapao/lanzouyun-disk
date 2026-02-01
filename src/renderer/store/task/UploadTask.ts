@@ -1,5 +1,11 @@
-import {TaskStatus} from '../AbstractTask'
 import {makeObservable, observable} from 'mobx'
+import {FormDataEncoder} from 'form-data-encoder'
+import {FormData} from 'formdata-node'
+import fs from 'fs-extra'
+import {Readable} from 'stream'
+import path from 'path'
+
+import {TaskStatus} from '../AbstractTask'
 import {BaseTask} from './BaseTask'
 import {byteToSize, createSpecificName, delay, sizeToByte} from '../../../common/util'
 import {config} from '../Config'
@@ -8,11 +14,6 @@ import {findFolderByName} from '../../../common/core/isExist'
 import {mkdir} from '../../../common/core/mkdir'
 import {splitTask} from '../../../common/split'
 import * as http from '../../../common/http'
-import {FormDataEncoder} from 'form-data-encoder'
-import {FormData} from 'formdata-node'
-import fs from 'fs-extra'
-import {Readable} from 'stream'
-import path from 'path'
 
 export type UploadFile = {
   size: File['size']
@@ -198,7 +199,7 @@ function createUploadForm(subTask: UploadSubtask, taskIndex: number) {
 }
 
 function beforeAddTask(file: {size: number}) {
-  if (window.skipCheck) return
+  if (window.__DEV__) return
   if (file.size > sizeToByte(config.maxSize)) {
     throw new Error(`文件大小(${byteToSize(file.size)}) 超出限制，最大允许上传 ${config.maxSize}`)
   }

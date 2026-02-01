@@ -10,6 +10,7 @@ import {download} from '../store'
 import {isFile} from '../../common/util'
 import {Button, Checkbox, Col, Input, message, Row, Table} from 'antd'
 import {DownloadTask} from '../store/task/DownloadTask'
+import SizeBox from '../component/SizeBox'
 
 export default function Parse() {
   const [shareFiles, setShareFiles] = useState<LsShareObject[]>([])
@@ -30,9 +31,9 @@ export default function Parse() {
     }
   }, [merge, selectedRows.length])
 
-  const parse = async () => {
+  const parse = async (form: typeof urlForm) => {
     try {
-      const rows = parseForm(urlForm)
+      const rows = parseForm(form)
       if (!rows.length) return
 
       // const value = await listener(lsShare(urlForm), 'lsShare')
@@ -55,6 +56,7 @@ export default function Parse() {
 
   return (
     <MyScrollView
+      scroll={false}
       HeaderComponent={
         <>
           <MyHeader>
@@ -65,7 +67,10 @@ export default function Parse() {
                   autoSize={{minRows: 1, maxRows: 6}}
                   allowClear
                   value={urlForm.url}
-                  onPressEnter={parse}
+                  onPressEnter={event => {
+                    event.preventDefault()
+                    parse(urlForm)
+                  }}
                   placeholder='* https://...  可同时解析多行'
                   onChange={event => setUrlForm(prevState => ({...prevState, url: event.target.value}))}
                 />
@@ -74,7 +79,10 @@ export default function Parse() {
                 <Input
                   allowClear
                   value={urlForm.pwd}
-                  onPressEnter={parse}
+                  onPressEnter={event => {
+                    event.preventDefault()
+                    parse(urlForm)
+                  }}
                   onChange={event => setUrlForm(prevState => ({...prevState, pwd: event.target.value}))}
                   placeholder='提取密码，选填'
                 />
@@ -84,13 +92,22 @@ export default function Parse() {
                   // style={{minWidth: 100}}
                   type={'primary'}
                   loading={loading['lsShare']}
-                  onClick={() => {
-                    if (!urlForm.url) return message.info('请输入url')
+                  onClick={async event => {
+                    const nextForm = {...urlForm}
+                    if (!nextForm.url) {
+                      // 检查粘贴板是否符合 URL 格式
+                      const clipboardText = await navigator.clipboard.readText()
+                      if (!/https?:\/\//.test(clipboardText)) {
+                        return message.info('请输入url')
+                      }
+                      nextForm.url = clipboardText
+                      setUrlForm(nextForm)
+                    }
 
-                    parse()
+                    parse(nextForm)
                   }}
                 >
-                  解析
+                  {!urlForm.url ? '粘贴并解析' : '解析'}
                 </Button>
               </Col>
               <Col>
@@ -160,72 +177,79 @@ export default function Parse() {
         </>
       }
     >
-      <Table
-        pagination={false}
-        size={'small'}
-        // rowKey={'url'}
-        rowKey={record => record.url}
-        sticky
-        dataSource={list}
-        onRow={record => ({
-          onClick: () => {
-            setSelectedRows(prev =>
-              prev.some(value => value.url === record.url)
-                ? prev.filter(value => value.url !== record.url)
-                : [...prev, record]
-            )
-          },
-        })}
-        rowSelection={{
-          selectedRowKeys: selectedRows.map(value => value.url),
-          onChange: (selectedRowKeys, selectedRows) => setSelectedRows(selectedRows),
-        }}
-        columns={[
-          {
-            title: '文件名',
-            render: (_, item) => {
-              const extname = path.extname(item.name).replace(/^\./, '')
-              return (
-                <>
-                  <MyIcon iconName={extname} defaultIcon={'file'} />
-                  <span>{item.name}</span>
-                </>
-              )
-            },
-          },
-          {title: '时间', width: 160, dataIndex: 'time'},
-          {title: '大小', width: 160, dataIndex: 'size'},
-          {
-            title: '操作',
-            width: 100,
-            render: (_, item) => (
-              <Button
-                size={'small'}
-                type={'text'}
-                icon={<MyIcon iconName={'download'} />}
-                onClick={async event => {
-                  event.stopPropagation()
-                  await download.addTasks([
-                    // {
-                    //   name: item.name,
-                    //   url: item.url,
-                    //   pwd: item.pwd,
-                    //   merge: false,
-                    // },
-                    new DownloadTask({
-                      name: item.name,
-                      url: item.url,
-                      pwd: item.pwd,
-                      merge: false,
-                    }),
-                  ])
-                  await message.success('已添加到下载列表')
-                }}
-              />
-            ),
-          },
-        ]}
-      />
+      <SizeBox>
+        {size => (
+          <Table
+            virtual
+            scroll={{x: size.width, y: size.height - 39}}
+            sticky
+            pagination={false}
+            size={'small'}
+            // rowKey={'url'}
+            rowKey={record => record.url}
+            dataSource={list}
+            onRow={record => ({
+              onClick: () => {
+                setSelectedRows(prev =>
+                  prev.some(value => value.url === record.url)
+                    ? prev.filter(value => value.url !== record.url)
+                    : [...prev, record]
+                )
+              },
+            })}
+            rowSelection={{
+              columnWidth: 64,
+              selectedRowKeys: selectedRows.map(value => value.url),
+              onChange: (selectedRowKeys, selectedRows) => setSelectedRows(selectedRows),
+            }}
+            columns={[
+              {
+                title: '文件名',
+                render: (_, item) => {
+                  const extname = path.extname(item.name).replace(/^\./, '')
+                  return (
+                    <>
+                      <MyIcon iconName={extname} defaultIcon={'file'} />
+                      <span>{item.name}</span>
+                    </>
+                  )
+                },
+              },
+              {title: '时间', width: 160, dataIndex: 'time'},
+              {title: '大小', width: 160, dataIndex: 'size'},
+              {
+                title: '操作',
+                width: 100,
+                render: (_, item) => (
+                  <Button
+                    size={'small'}
+                    type={'text'}
+                    icon={<MyIcon iconName={'download'} />}
+                    onClick={async event => {
+                      event.stopPropagation()
+                      await download.addTasks([
+                        // {
+                        //   name: item.name,
+                        //   url: item.url,
+                        //   pwd: item.pwd,
+                        //   merge: false,
+                        // },
+                        new DownloadTask({
+                          name: item.name,
+                          url: item.url,
+                          pwd: item.pwd,
+                          merge: false,
+                        }),
+                      ])
+                      await message.success('已添加到下载列表')
+                    }}
+                  />
+                ),
+              },
+            ]}
+          />
+        )}
+      </SizeBox>
     </MyScrollView>
   )
 }

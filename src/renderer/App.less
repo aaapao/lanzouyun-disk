@@ -1,6 +1,6 @@
-@import "~antd/dist/antd.less";
+//@import "~antd/dist/antd.less";
 
-@primary-color: #4C89F7;
+@primary-color: #4c89f7;
 
 @text-color: #585858;
 @text-color-secondary: #9a9a9a;
@@ -21,19 +21,31 @@
 @modal-header-padding-vertical: 14px;
 @modal-header-padding-horizontal: @modal-footer-padding-horizontal;
 @modal-body-padding: @modal-header-padding-horizontal;
-@modal-confirm-body-padding: @modal-footer-padding-horizontal @modal-footer-padding-horizontal @modal-header-padding-vertical;
+@modal-confirm-body-padding: @modal-footer-padding-horizontal @modal-footer-padding-horizontal
+  @modal-header-padding-vertical;
 @modal-header-border-width: 0;
 @modal-footer-border-width: 0;
 
-.ant-modal-close-x {
-  width: 43px;
-  height: 43px;
-  line-height: 43px;
+html,
+body {
+  margin: 0;
+  overflow: hidden;
 }
 
+//.ant-modal-close-x {
+//  width: 43px;
+//  height: 43px;
+//  line-height: 43px;
+//}
+
 // button
+
 .ant-btn.ant-btn-text.ant-btn-icon-only {
   transition: background-color 0.3s;
+  font-size: 16px;
+}
+.ant-btn .ant-btn-icon {
+  display: inline-flex;
 }
 
 // tabs
@@ -52,16 +64,9 @@
   padding: 4px 4px 4px 8px;
 }
 
-.ant-table-row {
-  height: 36px;
-}
-
-.spaceBetween {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
+// .ant-table-row {
+//   height: 36px;
+// }
 
 .handle {
   visibility: hidden;
@@ -119,7 +124,7 @@
 }
 /*aside 24 右边距*/
 .aside {
-  background-color: #F6F6F6;
+  background-color: #f6f6f6;
   width: 200px;
   padding-top: 46px;
   display: flex;

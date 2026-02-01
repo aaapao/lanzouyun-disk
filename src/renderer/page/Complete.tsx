@@ -1,19 +1,20 @@
 import React from 'react'
 import {observer} from 'mobx-react'
 import path from 'path'
+import {Button, Table, Tabs, Typography} from 'antd'
+import {shell} from '@electron/remote'
+
 import {MyScrollView} from '../component/ScrollView'
 import {MyHeader} from '../component/Header'
 import {MyIcon} from '../component/Icon'
 import {byteToSize} from '../../common/util'
-import electronApi from '../electronApi'
-import {Button, Table, Tabs, Typography} from 'antd'
 import {finish} from '../store/Finish'
 import {taskLength} from '../utils/task'
 
 const Complete = observer(() => {
   return (
     <Tabs tabPosition={'left'} tabBarStyle={{paddingTop: 46, minWidth: 110}}>
-      <Tabs.TabPane tab={`下载${taskLength(finish.downloadList)}`} key={'1'}>
+      <Tabs.TabPane tab={`下载${taskLength(finish.downloadList)}`} key={'1'} className={'!pl-0'}>
         <MyScrollView
           HeaderComponent={
             <MyHeader>
@@ -37,7 +38,7 @@ const Complete = observer(() => {
                     <a
                       href={'#'}
                       title={`打开文件：${item.name}`}
-                      onClick={() => electronApi.openPath(path.join(item.dir, item.name))}
+                      onClick={() => shell.openPath(path.join(item.dir, item.name))}
                     >
                       <MyIcon iconName={extname} defaultIcon={'file'} />
                       <Typography.Text title={item.dir}>{item.name}</Typography.Text>
@@ -60,7 +61,7 @@ const Complete = observer(() => {
                     type={'text'}
                     onClick={async () => {
                       const filePath = path.join(item.dir, item.name)
-                      await electronApi.showItemInFolder(filePath)
+                      shell.showItemInFolder(filePath)
                     }}
                   />
                 ),
@@ -69,7 +70,7 @@ const Complete = observer(() => {
           />
         </MyScrollView>
       </Tabs.TabPane>
-      <Tabs.TabPane tab={`上传${taskLength(finish.uploadList)}`} key={'2'}>
+      <Tabs.TabPane tab={`上传${taskLength(finish.uploadList)}`} key={'2'} className={'!pl-0'}>
         <MyScrollView
           HeaderComponent={
             <MyHeader>
@@ -121,7 +122,7 @@ const Complete = observer(() => {
           />
         </MyScrollView>
       </Tabs.TabPane>
-      <Tabs.TabPane tab={`同步${taskLength(finish.syncList)}`} key={'3'}>
+      <Tabs.TabPane tab={`同步${taskLength(finish.syncList)}`} key={'3'} className={'!pl-0'}>
         <MyScrollView
           HeaderComponent={
             <MyHeader>

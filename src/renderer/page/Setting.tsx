@@ -1,30 +1,66 @@
-import React from 'react'
-import {Button, Checkbox, Col, Form, Input, InputNumber, Modal, Radio, Row, Space, Typography} from 'antd'
+import React, {useEffect, useState} from 'react'
+import {Button, Checkbox, Col, Form, Input, InputNumber, Modal, Radio, Row, Space, Typography, message} from 'antd'
 import {observer} from 'mobx-react'
+import {dialog, getCurrentWindow, nativeTheme, shell} from '@electron/remote'
+import {ipcRenderer} from 'electron'
+
 import {MyScrollView} from '../component/ScrollView'
 import {config} from '../store/Config'
-import electronApi from '../electronApi'
-import {download, upload} from '../store'
+import {upload} from '../store'
 import {TaskStatus} from '../store/AbstractTask'
 import {calculate} from '../store/Calculate'
 import {byteToSize} from '../../common/util'
+import {logout} from '../utils/app'
+import pkg from '../../../package.json'
 
 const Setting = observer(() => {
+  const [debug, setDebug] = useState(!!window.__DEV__)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+
+  useEffect(() => {
+    window.__DEV__ = debug
+  }, [debug])
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true)
+    try {
+      // 发送IPC消息给主进程，调用主进程的检查更新方法
+      ipcRenderer.send('check-update')
+      message.info('正在检查更新，请稍候...')
+    } catch (error) {
+      console.error('检查更新失败:', error)
+      message.error('检查更新失败，请稍后重试')
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
+
   return (
-    <MyScrollView style={{paddingTop: 60, paddingLeft: 30}}>
-      <Form labelAlign={'left'} colon={false} labelCol={{flex: '100px', style: {fontWeight: 'bold'}}}>
+    <MyScrollView className={'pt-[60px] pl-[30px]'}>
+      <Form labelAlign={'left'} colon={false} labelCol={{flex: '110px', style: {fontWeight: 'bold'}}}>
+        <Form.Item label={'版本信息'} style={{marginBottom: 30}}>
+          <Space direction={'vertical'}>
+            <Typography.Text>当前版本: v{pkg.version}</Typography.Text>
+            <Button type='primary' onClick={handleCheckUpdate} loading={checkingUpdate}>
+              检查更新
+            </Button>
+          </Space>
+        </Form.Item>
         {/*todo:*/}
-        <Form.Item label={'统计'}>
+        {/*<Form.Item label={'统计'}>
           <Button title={'暂未开放'} type={'link'} disabled>
             查看
           </Button>
-        </Form.Item>
+        </Form.Item>*/}
         <Form.Item label={'外观'}>
           <Radio.Group
             defaultValue={config.themeSource}
             onChange={async e => {
-              const theme = await electronApi.setTheme(e.target.value)
-              config.themeSource = theme.themeSource
+              const theme = e.target.value
+              if (nativeTheme.themeSource !== theme) {
+                nativeTheme.themeSource = theme
+              }
+              config.themeSource = nativeTheme.themeSource
             }}
           >
             <Radio.Button value={'light'}>浅色</Radio.Button>
@@ -38,7 +74,7 @@ const Setting = observer(() => {
               <SelectDownloadDir />
             </Col>
             <Col>
-              <Button type={'link'} onClick={() => electronApi.openPath(config.downloadDir)}>
+              <Button type={'link'} onClick={() => shell.openPath(config.downloadDir)}>
                 打开
               </Button>
             </Col>
@@ -87,26 +123,49 @@ const Setting = observer(() => {
             <span>今日流量 {byteToSize(calculate.getRecordSize())}</span>
           </Space>
         </Form.Item>
-        <Form.Item label={'最后登录'} style={{marginTop: 70}}>
-          {config.lastLogin}
+        <Form.Item label={'开发模式'}>
+          <Checkbox checked={debug} onChange={e => setDebug(e.target.checked)} />
         </Form.Item>
-        <Form.Item label={'账号'}>
-          <Button
-            onClick={() => {
-              if ([download.list, upload.list].some(value => value.some(task => task.status === TaskStatus.pending))) {
-                Modal.confirm({
-                  content: '有正在上传/下载的任务，是否继续退出？',
-                  okText: '退出',
-                  onOk: () => electronApi.logout(),
-                })
-              } else {
-                electronApi.logout()
-              }
-            }}
-          >
-            退出登录
-          </Button>
-        </Form.Item>
+        {debug && (
+          <>
+            <Form.Item label={'控制台'}>
+              <Button onClick={() => getCurrentWindow().webContents.toggleDevTools()}>切换</Button>
+            </Form.Item>
+          </>
+        )}
+
+        {config.isComplete && (
+          <>
+            <Form.Item label={'最后登录'} style={{marginTop: 70}}>
+              {config.lastLogin}
+            </Form.Item>
+            <Form.Item label={'账号'}>
+              <Button
+                onClick={() => {
+                  if ([upload.list].some(value => value.some(task => task.status === TaskStatus.pending))) {
+                    Modal.confirm({
+                      content: '有正在上传的任务，是否继续退出？',
+                      okText: '退出',
+                      onOk: () => {
+                        upload.pauseAll()
+                        return logout()
+                      },
+                    })
+                  } else {
+                    Modal.confirm({
+                      content: '确认退出？',
+                      okText: '退出',
+                      onOk: () => logout(),
+                    })
+                  }
+                }}
+              >
+                退出登录
+              </Button>
+            </Form.Item>
+          </>
+        )}
+
         {/*<Form.Item label={'关于'} style={{marginTop: 60}}>
           <Space direction={'vertical'}>
             <span>蓝奏云盘</span>
@@ -131,7 +190,7 @@ export const SelectDownloadDir = observer(() => (
         <Button
           type={'link'}
           onClick={async () => {
-            const value = await electronApi.showOpenDialog({properties: ['openDirectory', 'createDirectory']})
+            const value = await dialog.showOpenDialog({properties: ['openDirectory', 'createDirectory']})
             if (!value.canceled) {
               config.downloadDir = value.filePaths[0]
             }
